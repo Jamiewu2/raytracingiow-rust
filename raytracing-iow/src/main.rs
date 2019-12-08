@@ -8,8 +8,8 @@ use minifb::Window;
 use minifb::WindowOptions;
 use minifb::Key;
 
-const WIDTH: usize = 200;
-const HEIGHT: usize = 100;
+const WIDTH: usize = 640;
+const HEIGHT: usize = 360;
 
 fn main() {
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
@@ -31,7 +31,7 @@ fn main() {
     }
 
     //draw output
-    draw_picture(200, 100, "output/chapter1.ppm")
+    draw_picture(WIDTH, HEIGHT, "output/chapter1.ppm")
         .unwrap();
 }
 
@@ -85,7 +85,7 @@ fn create_buffer(x_size: usize, y_size: usize) -> Vec<u32> {
 }
 
 //() type inside the Result generic is a zero sized tuple. It's basically used in a similar vein to void
-fn draw_picture(x_size: i32, y_size: i32, filename: &str) -> io::Result<()> {
+fn draw_picture(x_size: usize, y_size: usize, filename: &str) -> io::Result<()> {
     //? syntax: try, unwrap if success, otherwise pass the error up the call stack
     let output_file = File::create(filename)?;
 
