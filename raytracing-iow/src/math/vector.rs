@@ -147,6 +147,18 @@ impl ops::DivAssign for Vec3 {
     }
 }
 
+impl ops::Mul<Vec3> for f64 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: Vec3) -> Vec3 {
+        Vec3 {
+            x: self * rhs.x,
+            y: self * rhs.y,
+            z: self * rhs.z,
+        }
+    }
+}
+
 impl ops::Mul<f64> for Vec3 {
     type Output = Vec3;
 
@@ -214,7 +226,7 @@ impl ops::IndexMut<i32> for Vec3 {
 
 #[cfg(test)]
 mod tests {
-    use crate::vector::Vec3;
+    use crate::math::Vec3;
 
     #[test]
     fn test_add() {
