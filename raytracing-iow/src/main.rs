@@ -1,5 +1,7 @@
 extern crate minifb;
 
+mod vector;
+
 use std::io;
 use std::fs::File;
 use std::io::BufWriter;
@@ -68,13 +70,15 @@ fn create_buffer(x_size: usize, y_size: usize) -> Vec<u32> {
         for i in 0..x_size {
 
             //cast into range from 0 to 1.0
-            let r = (i as f64) / (x_size as f64);
-            let g = (j as f64) / (y_size as f64);
-            let b = 0.2;
+            let rgb_vec = vector::Vec3::new(
+            (i as f64) / (x_size as f64),
+            (j as f64) / (y_size as f64),
+            0.2
+            );
 
-            let ir = (255.99 * r) as u8;
-            let ig = (255.99 * g) as u8;
-            let ib = (255.99 * b) as u8;
+            let ir = (255.99 * rgb_vec.r()) as u8;
+            let ig = (255.99 * rgb_vec.g()) as u8;
+            let ib = (255.99 * rgb_vec.b()) as u8;
 
             let rgb = RGB::from_u8_rgb(ir, ig, ib);
             buffer.push(rgb);
