@@ -29,9 +29,11 @@ fn main() {
         } else if window.is_key_down(Key::Key1) {
             buffer = create_buffer(WIDTH, HEIGHT);
         } else if window.is_key_down(Key::Key3) {
-            buffer = create_ray_buffer(WIDTH, HEIGHT, get_color);
+            buffer = create_ray_buffer(WIDTH, HEIGHT, get_bg_color);
         } else if window.is_key_down(Key::Key4) {
             buffer = create_ray_buffer(WIDTH, HEIGHT, get_color_chapter_4);
+        } else if window.is_key_down(Key::Key5) {
+            buffer = create_ray_buffer(WIDTH, HEIGHT, get_color_chapter_5);
         }
 
         window.update_with_buffer_size(&buffer, WIDTH, HEIGHT)
@@ -42,12 +44,16 @@ fn main() {
     draw_picture(WIDTH, HEIGHT, "output/chapter1.ppm", create_buffer)
         .unwrap();
 
-    let ray_buffer_closure = | w, h | create_ray_buffer(w, h, get_color);
-    draw_picture(WIDTH,HEIGHT, "output/chapter3.ppm", ray_buffer_closure)
+    let ray_buffer_closure_3 = | w, h | create_ray_buffer(w, h, get_bg_color);
+    draw_picture(WIDTH,HEIGHT, "output/chapter3.ppm", ray_buffer_closure_3)
         .unwrap();
 
     let ray_buffer_closure_4 = | w, h | create_ray_buffer(w, h, get_color_chapter_4);
     draw_picture(WIDTH,HEIGHT, "output/chapter4.ppm", ray_buffer_closure_4)
+        .unwrap();
+
+    let ray_buffer_closure_5 = | w, h | create_ray_buffer(w, h, get_color_chapter_5);
+    draw_picture(WIDTH,HEIGHT, "output/chapter5.ppm", ray_buffer_closure_5)
         .unwrap();
 }
 
@@ -107,7 +113,7 @@ fn create_buffer(x_size: usize, y_size: usize) -> Vec<u32> {
 }
 
 //chapter 3
-fn get_color(ray: &Ray) -> Vec3 {
+fn get_bg_color(ray: &Ray) -> Vec3 {
     let white: Vec3 = Vec3::new(1.0, 1.0, 1.0);
     let blue: Vec3 = Vec3::new(0.5, 0.7, 1.0);
 
@@ -162,7 +168,44 @@ fn get_color_chapter_4(ray: &Ray) -> Vec3 {
     if hit_sphere(&center, 0.5, ray) {
         return red;
     } else {
-        return get_color(ray);
+        return get_bg_color(ray);
+    }
+}
+
+//chapter 5
+// returns -1 if no intersection
+// if hit, return some positive t = distance to first intersection
+fn hit_sphere_5(center: &Vec3, radius: f64, ray: &Ray) -> f64 {
+    //t*t*dot(B, B) + 2*t*dot(B,A-C) + dot(A-C,A-C) - R*R = 0
+
+    let ac = ray.origin() - *center;
+    let a = ray.direction().dot(ray.direction());
+    let b = 2.0 * ray.direction().dot(ac);
+    let c = ac.dot(ac) - radius * radius;
+
+    let discriminant = b.powi(2) - 4_f64 * a * c;
+
+    return if discriminant < 0.0 {
+        -1_f64
+    } else {
+        //quadratic formula
+        (-b - discriminant.sqrt()) / (2.0 * a)
+    };
+}
+
+fn get_color_chapter_5(ray: &Ray) -> Vec3 {
+    let center = Vec3::new(0_f64,0_f64,-1_f64);
+    let red = Vec3::new(1_f64, 0_f64, 0_f64);
+
+    let t = hit_sphere_5(&center, 0.5, ray);
+    if t > 0.0 {
+        let intersection_point = ray.point_at_distance(t);
+        let surface_normal = (intersection_point - center).unit_vector();
+
+        //hack, map surface_normal from [-1,1] xyz into range [0,1] rgb for visualization
+        return 0.5 * Vec3::new(surface_normal.x() + 1_f64, surface_normal.y() + 1_f64, surface_normal.z() + 1_f64);
+    } else {
+        return get_bg_color(ray);
     }
 }
 
