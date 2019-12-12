@@ -12,8 +12,8 @@ use minifb::Window;
 use minifb::WindowOptions;
 use minifb::Key;
 
-const WIDTH: usize = 640;
-const HEIGHT: usize = 360;
+const WIDTH: usize = 800;
+const HEIGHT: usize = 400;
 
 fn main() {
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
@@ -27,9 +27,11 @@ fn main() {
         if window.is_key_down(Key::Escape) {
             break;
         } else if window.is_key_down(Key::Key1) {
-             buffer = create_buffer(WIDTH, HEIGHT);
+            buffer = create_buffer(WIDTH, HEIGHT);
         } else if window.is_key_down(Key::Key3) {
-            buffer = create_ray_buffer(WIDTH, HEIGHT);
+            buffer = create_ray_buffer(WIDTH, HEIGHT, get_color);
+        } else if window.is_key_down(Key::Key4) {
+            buffer = create_ray_buffer(WIDTH, HEIGHT, get_color_chapter_4);
         }
 
         window.update_with_buffer_size(&buffer, WIDTH, HEIGHT)
@@ -37,7 +39,15 @@ fn main() {
     }
 
     //draw output
-    draw_picture(WIDTH, HEIGHT, "output/chapter1.ppm")
+    draw_picture(WIDTH, HEIGHT, "output/chapter1.ppm", create_buffer)
+        .unwrap();
+
+    let ray_buffer_closure = | w, h | create_ray_buffer(w, h, get_color);
+    draw_picture(WIDTH,HEIGHT, "output/chapter3.ppm", ray_buffer_closure)
+        .unwrap();
+
+    let ray_buffer_closure_4 = | w, h | create_ray_buffer(w, h, get_color_chapter_4);
+    draw_picture(WIDTH,HEIGHT, "output/chapter4.ppm", ray_buffer_closure_4)
         .unwrap();
 }
 
@@ -97,8 +107,6 @@ fn create_buffer(x_size: usize, y_size: usize) -> Vec<u32> {
 }
 
 //chapter 3
-
-
 fn get_color(ray: &Ray) -> Vec3 {
     let white: Vec3 = Vec3::new(1.0, 1.0, 1.0);
     let blue: Vec3 = Vec3::new(0.5, 0.7, 1.0);
@@ -109,7 +117,7 @@ fn get_color(ray: &Ray) -> Vec3 {
     return (1.0 - t) * white + t * blue;
 }
 
-fn create_ray_buffer(x_size: usize, y_size: usize) -> Vec<u32> {
+fn create_ray_buffer(x_size: usize, y_size: usize, ray_fn: fn(&Ray) -> Vec3) -> Vec<u32> {
     let mut buffer: Vec<u32> = Vec::new();
 
     //u,v coordinate system, x: [-2, 2], y[-1, 1]
@@ -124,7 +132,7 @@ fn create_ray_buffer(x_size: usize, y_size: usize) -> Vec<u32> {
             let v = (j as f64) / (y_size as f64);
             let direction = bottom_left + u * horizontal + v * vertical;
             let ray = Ray::new(origin, direction);
-            let color = get_color(&ray);
+            let color = ray_fn(&ray);
             let rgb = color.to_u32_rgb();
             buffer.push(rgb);
         }
@@ -133,8 +141,33 @@ fn create_ray_buffer(x_size: usize, y_size: usize) -> Vec<u32> {
     return buffer;
 }
 
+//chapter 4
+fn hit_sphere(center: &Vec3, radius: f64, ray: &Ray) -> bool {
+    //t*t*dot(B, B) + 2*t*dot(B,A-C) + dot(A-C,A-C) - R*R = 0
+
+    let ac = ray.origin() - *center;
+    let a = ray.direction().dot(ray.direction());
+    let b = 2.0 * ray.direction().dot(ac);
+    let c = ac.dot(ac) - radius * radius;
+
+    let discriminant = b.powi(2) - 4_f64 * a * c;
+
+    return discriminant > 0_f64;
+}
+
+fn get_color_chapter_4(ray: &Ray) -> Vec3 {
+    let center = Vec3::new(0_f64,0_f64,-1_f64);
+    let red = Vec3::new(1_f64, 0_f64, 0_f64);
+
+    if hit_sphere(&center, 0.5, ray) {
+        return red;
+    } else {
+        return get_color(ray);
+    }
+}
+
 //() type inside the Result generic is a zero sized tuple. It's basically used in a similar vein to void
-fn draw_picture(x_size: usize, y_size: usize, filename: &str) -> io::Result<()> {
+fn draw_picture(x_size: usize, y_size: usize, filename: &str, f: fn(usize, usize) -> Vec<u32>) -> io::Result<()> {
     //? syntax: try, unwrap if success, otherwise pass the error up the call stack
     let output_file = File::create(filename)?;
 
@@ -144,7 +177,7 @@ fn draw_picture(x_size: usize, y_size: usize, filename: &str) -> io::Result<()> 
         let header = format!("P3\n{x_size} {y_size}\n255\n", x_size=x_size, y_size=y_size);
         writer.write_all(header.as_bytes())?;
 
-        let buffer = create_buffer(x_size as usize, y_size as usize);
+        let buffer = f(x_size, y_size);
 
         for val in buffer {
             let ir = val.get_r();
