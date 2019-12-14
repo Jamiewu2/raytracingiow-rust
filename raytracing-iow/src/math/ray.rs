@@ -41,4 +41,3 @@ mod tests {
         assert_eq!(ray.point_at_distance(3.0), answer);
     }
 }
-

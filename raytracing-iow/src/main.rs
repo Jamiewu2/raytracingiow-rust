@@ -4,6 +4,9 @@ mod math;
 use math::Vec3;
 use math::Ray;
 
+mod render;
+use render::*;
+
 use std::io;
 use std::fs::File;
 use std::io::BufWriter;
@@ -195,17 +198,16 @@ fn hit_sphere_5(center: &Vec3, radius: f64, ray: &Ray) -> f64 {
 
 fn get_color_chapter_5(ray: &Ray) -> Vec3 {
     let center = Vec3::new(0_f64,0_f64,-1_f64);
-    let red = Vec3::new(1_f64, 0_f64, 0_f64);
+    let radius = 0.5;
+    let sphere = Sphere::new(center, radius);
 
-    let t = hit_sphere_5(&center, 0.5, ray);
-    if t > 0.0 {
-        let intersection_point = ray.point_at_distance(t);
-        let surface_normal = (intersection_point - center).unit_vector();
-
-        //hack, map surface_normal from [-1,1] xyz into range [0,1] rgb for visualization
-        return 0.5 * Vec3::new(surface_normal.x() + 1_f64, surface_normal.y() + 1_f64, surface_normal.z() + 1_f64);
-    } else {
-        return get_bg_color(ray);
+    match { sphere.hit(ray, 0_f64, std::f64::MAX) } {
+        Some(hit_record) => {
+            //hack, map surface_normal from [-1,1] xyz into range [0,1] rgb for visualization
+            let surface_normal = hit_record.normal;
+            return 0.5 * Vec3::new(surface_normal.x() + 1_f64, surface_normal.y() + 1_f64, surface_normal.z() + 1_f64);
+        }
+        None => return get_bg_color(ray),
     }
 }
 

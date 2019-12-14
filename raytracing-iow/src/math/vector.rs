@@ -292,4 +292,3 @@ mod tests {
         assert!((1.0 - first.unit_vector().length()).abs() < eps);
     }
 }
-
