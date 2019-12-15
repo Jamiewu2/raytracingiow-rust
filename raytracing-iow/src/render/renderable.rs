@@ -13,6 +13,25 @@ pub trait Renderable {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
 }
 
+impl<T: Renderable> Renderable for Vec<T> {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let mut max = t_max;
+        let mut curr: Option<HitRecord> = Option::None;
+
+        for item in self {
+            match item.hit(ray, t_min, max) {
+                Option::Some(hit_record) => {
+                    max = hit_record.t;
+                    curr = Option::Some(hit_record);
+                }
+                Option::None => continue
+            }
+        }
+
+        return curr;
+    }
+}
+
 pub struct Sphere {
     center: Vec3,
     radius: f64
@@ -26,6 +45,15 @@ impl Sphere {
         }
     }
 
+    fn create_hit_record(&self, ray: &Ray, t: f64) -> HitRecord {
+        let position = ray.point_at_distance(t);
+        let normal = (position - self.center).unit_vector();
+        HitRecord {
+            t,
+            position,
+            normal,
+        }
+    }
 }
 
 impl Renderable for Sphere {
@@ -45,27 +73,13 @@ impl Renderable for Sphere {
             //quadratic formula
             let t = (-b - discriminant.sqrt()) / (2.0 * a);
             if t >= t_min && t <= t_max {
-                let position = ray.point_at_distance(t);
-                let normal = (position - self.center).unit_vector();
-                let hit_record = HitRecord {
-                    t,
-                    position,
-                    normal,
-                };
-
+                let hit_record = self.create_hit_record(ray, t);
                 return Option::Some(hit_record);
             }
 
             let t2 = (-b + discriminant.sqrt()) / (2.0 * a);
-            if  t2 >= t_min && t2 <= t_max {
-                let position = ray.point_at_distance(t);
-                let normal = (position - self.center).unit_vector();
-                let hit_record = HitRecord {
-                    t: t2,
-                    position,
-                    normal,
-                };
-
+            if t2 >= t_min && t2 <= t_max {
+                let hit_record = self.create_hit_record(ray, t);
                 return Option::Some(hit_record);
             }
 

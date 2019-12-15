@@ -200,8 +200,10 @@ fn get_color_chapter_5(ray: &Ray) -> Vec3 {
     let center = Vec3::new(0_f64,0_f64,-1_f64);
     let radius = 0.5;
     let sphere = Sphere::new(center, radius);
+    let sphere2 = Sphere::new(Vec3::new(0_f64,-100.5, -1_f64), 100_f64);
+    let world = vec!(sphere, sphere2);
 
-    match { sphere.hit(ray, 0_f64, std::f64::MAX) } {
+    match { world.hit(ray, 0_f64, std::f64::MAX) } {
         Some(hit_record) => {
             //hack, map surface_normal from [-1,1] xyz into range [0,1] rgb for visualization
             let surface_normal = hit_record.normal;
