@@ -1,19 +1,19 @@
 extern crate minifb;
 
 mod math;
-use math::Vec3;
 use math::Ray;
+use math::Vec3;
 
 mod render;
 use render::*;
 
-use std::io;
-use std::fs::File;
-use std::io::BufWriter;
-use std::io::Write;
+use minifb::Key;
 use minifb::Window;
 use minifb::WindowOptions;
-use minifb::Key;
+use std::fs::File;
+use std::io;
+use std::io::BufWriter;
+use std::io::Write;
 
 const WIDTH: usize = 800;
 const HEIGHT: usize = 400;
@@ -39,25 +39,22 @@ fn main() {
             buffer = create_ray_buffer(WIDTH, HEIGHT, get_color_chapter_5);
         }
 
-        window.update_with_buffer_size(&buffer, WIDTH, HEIGHT)
+        window
+            .update_with_buffer_size(&buffer, WIDTH, HEIGHT)
             .unwrap();
     }
 
     //draw output
-    draw_picture(WIDTH, HEIGHT, "output/chapter1.ppm", create_buffer)
-        .unwrap();
+    draw_picture(WIDTH, HEIGHT, "output/chapter1.ppm", create_buffer).unwrap();
 
-    let ray_buffer_closure_3 = | w, h | create_ray_buffer(w, h, get_bg_color);
-    draw_picture(WIDTH,HEIGHT, "output/chapter3.ppm", ray_buffer_closure_3)
-        .unwrap();
+    let ray_buffer_closure_3 = |w, h| create_ray_buffer(w, h, get_bg_color);
+    draw_picture(WIDTH, HEIGHT, "output/chapter3.ppm", ray_buffer_closure_3).unwrap();
 
-    let ray_buffer_closure_4 = | w, h | create_ray_buffer(w, h, get_color_chapter_4);
-    draw_picture(WIDTH,HEIGHT, "output/chapter4.ppm", ray_buffer_closure_4)
-        .unwrap();
+    let ray_buffer_closure_4 = |w, h| create_ray_buffer(w, h, get_color_chapter_4);
+    draw_picture(WIDTH, HEIGHT, "output/chapter4.ppm", ray_buffer_closure_4).unwrap();
 
-    let ray_buffer_closure_5 = | w, h | create_ray_buffer(w, h, get_color_chapter_5);
-    draw_picture(WIDTH,HEIGHT, "output/chapter5.ppm", ray_buffer_closure_5)
-        .unwrap();
+    let ray_buffer_closure_5 = |w, h| create_ray_buffer(w, h, get_color_chapter_5);
+    draw_picture(WIDTH, HEIGHT, "output/chapter5.ppm", ray_buffer_closure_5).unwrap();
 }
 
 trait RGB {
@@ -99,12 +96,11 @@ fn create_buffer(x_size: usize, y_size: usize) -> Vec<u32> {
 
     for j in (0..y_size).rev() {
         for i in 0..x_size {
-
             //cast into range from 0 to 1.0
             let rgb_vec = Vec3::new(
-            (i as f64) / (x_size as f64),
-            (j as f64) / (y_size as f64),
-            0.2
+                (i as f64) / (x_size as f64),
+                (j as f64) / (y_size as f64),
+                0.2,
             );
 
             let rgb = rgb_vec.to_u32_rgb();
@@ -122,7 +118,7 @@ fn get_bg_color(ray: &Ray) -> Vec3 {
 
     let unit_direction = ray.direction().unit_vector();
     let t = 0.5 * (unit_direction.y() + 1.0); // 0 to 1.0
-    //lerp
+                                              //lerp
     return (1.0 - t) * white + t * blue;
 }
 
@@ -133,7 +129,7 @@ fn create_ray_buffer(x_size: usize, y_size: usize, ray_fn: fn(&Ray) -> Vec3) -> 
     let bottom_left = Vec3::new(-2.0, -1.0, -1.0);
     let horizontal = Vec3::new(4.0, 0.0, 0.0);
     let vertical = Vec3::new(0.0, 2.0, 0.0);
-    let origin = Vec3::new(0.0,0.0,0.0);
+    let origin = Vec3::new(0.0, 0.0, 0.0);
 
     for j in (0..y_size).rev() {
         for i in 0..x_size {
@@ -165,7 +161,7 @@ fn hit_sphere(center: &Vec3, radius: f64, ray: &Ray) -> bool {
 }
 
 fn get_color_chapter_4(ray: &Ray) -> Vec3 {
-    let center = Vec3::new(0_f64,0_f64,-1_f64);
+    let center = Vec3::new(0_f64, 0_f64, -1_f64);
     let red = Vec3::new(1_f64, 0_f64, 0_f64);
 
     if hit_sphere(&center, 0.5, ray) {
@@ -197,31 +193,44 @@ fn hit_sphere_5(center: &Vec3, radius: f64, ray: &Ray) -> f64 {
 }
 
 fn get_color_chapter_5(ray: &Ray) -> Vec3 {
-    let center = Vec3::new(0_f64,0_f64,-1_f64);
+    let center = Vec3::new(0_f64, 0_f64, -1_f64);
     let radius = 0.5;
     let sphere = Sphere::new(center, radius);
-    let sphere2 = Sphere::new(Vec3::new(0_f64,-100.5, -1_f64), 100_f64);
-    let world = vec!(sphere, sphere2);
+    let sphere2 = Sphere::new(Vec3::new(0_f64, -100.5, -1_f64), 100_f64);
+    let world = vec![sphere, sphere2];
 
     match { world.hit(ray, 0_f64, std::f64::MAX) } {
         Some(hit_record) => {
             //hack, map surface_normal from [-1,1] xyz into range [0,1] rgb for visualization
             let surface_normal = hit_record.normal;
-            return 0.5 * Vec3::new(surface_normal.x() + 1_f64, surface_normal.y() + 1_f64, surface_normal.z() + 1_f64);
+            return 0.5 * Vec3::new(
+                    surface_normal.x() + 1_f64,
+                    surface_normal.y() + 1_f64,
+                    surface_normal.z() + 1_f64,
+                );
         }
         None => return get_bg_color(ray),
     }
 }
 
 //() type inside the Result generic is a zero sized tuple. It's basically used in a similar vein to void
-fn draw_picture(x_size: usize, y_size: usize, filename: &str, f: fn(usize, usize) -> Vec<u32>) -> io::Result<()> {
+fn draw_picture(
+    x_size: usize,
+    y_size: usize,
+    filename: &str,
+    f: fn(usize, usize) -> Vec<u32>,
+) -> io::Result<()> {
     //? syntax: try, unwrap if success, otherwise pass the error up the call stack
     let output_file = File::create(filename)?;
 
     {
         let mut writer = BufWriter::new(output_file);
 
-        let header = format!("P3\n{x_size} {y_size}\n255\n", x_size=x_size, y_size=y_size);
+        let header = format!(
+            "P3\n{x_size} {y_size}\n255\n",
+            x_size = x_size,
+            y_size = y_size
+        );
         writer.write_all(header.as_bytes())?;
 
         let buffer = f(x_size, y_size);

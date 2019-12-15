@@ -1,11 +1,11 @@
-use crate::math::Vec3;
 use crate::math::Ray;
+use crate::math::Vec3;
 
 pub struct HitRecord {
     //ray.point_at_distance(t) = position
     pub t: f64,
     pub position: Vec3,
-    pub normal: Vec3
+    pub normal: Vec3,
 }
 
 pub trait Renderable {
@@ -24,7 +24,7 @@ impl<T: Renderable> Renderable for Vec<T> {
                     max = hit_record.t;
                     curr = Option::Some(hit_record);
                 }
-                Option::None => continue
+                Option::None => continue,
             }
         }
 
@@ -34,15 +34,12 @@ impl<T: Renderable> Renderable for Vec<T> {
 
 pub struct Sphere {
     center: Vec3,
-    radius: f64
+    radius: f64,
 }
 
 impl Sphere {
     pub fn new(center: Vec3, radius: f64) -> Self {
-        Self {
-            center,
-            radius
-        }
+        Self { center, radius }
     }
 
     fn create_hit_record(&self, ray: &Ray, t: f64) -> HitRecord {
@@ -57,9 +54,7 @@ impl Sphere {
 }
 
 impl Renderable for Sphere {
-
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
-
         let ac = ray.origin() - self.center;
         let a = ray.direction().dot(ray.direction());
         let b = 2.0 * ray.direction().dot(ac);

@@ -2,15 +2,12 @@ use crate::math::Vec3;
 
 pub struct Ray {
     origin: Vec3,
-    direction: Vec3
+    direction: Vec3,
 }
 
 impl Ray {
     pub fn new(origin: Vec3, direction: Vec3) -> Self {
-        Self {
-            origin,
-            direction
-        }
+        Self { origin, direction }
     }
 
     pub fn origin(&self) -> Vec3 {
@@ -28,13 +25,13 @@ impl Ray {
 
 #[cfg(test)]
 mod tests {
-    use crate::math::Vec3;
     use crate::math::Ray;
+    use crate::math::Vec3;
 
     #[test]
     fn test_point_at_distance() {
-        let origin = Vec3::new(1.0,0.0,0.0);
-        let direction = Vec3::new(1.0,1.0,1.0);
+        let origin = Vec3::new(1.0, 0.0, 0.0);
+        let direction = Vec3::new(1.0, 1.0, 1.0);
         let ray = Ray::new(origin, direction);
 
         let answer = Vec3::new(4.0, 3.0, 3.0);
