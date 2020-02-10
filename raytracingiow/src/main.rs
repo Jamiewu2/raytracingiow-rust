@@ -1,11 +1,15 @@
 extern crate minifb;
+extern crate rand;
 
 mod math;
 use math::Ray;
 use math::Vec3;
 
+use rand::Rng;
+
 mod render;
 use render::*;
+use render::random_in_unit_sphere;
 
 use minifb::Key;
 use minifb::Window;
@@ -15,8 +19,8 @@ use std::io;
 use std::io::BufWriter;
 use std::io::Write;
 
-const WIDTH: usize = 800;
-const HEIGHT: usize = 400;
+const WIDTH: usize = 600;
+const HEIGHT: usize = 300;
 
 fn main() {
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
@@ -26,17 +30,28 @@ fn main() {
             panic!("failed to create window, {}", e);
         });
 
+    //TODO how the fk do i move this out of here and specify all the lifetimes
+    let center = Vec3::new(0_f64, 0_f64, -1_f64);
+    let radius = 0.5;
+    let sphere = Sphere::new(center, radius);
+    let sphere2 = Sphere::new(Vec3::new(0_f64, -100.5, -1_f64), 100_f64);
+    let world = vec![sphere, sphere2];
+
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
             break;
         } else if window.is_key_down(Key::Key1) {
             buffer = create_buffer(WIDTH, HEIGHT);
         } else if window.is_key_down(Key::Key3) {
-            buffer = create_ray_buffer(WIDTH, HEIGHT, get_bg_color);
+            buffer = create_ray_buffer(WIDTH, HEIGHT, &world, get_bg_color);
         } else if window.is_key_down(Key::Key4) {
-            buffer = create_ray_buffer(WIDTH, HEIGHT, get_color_chapter_4);
+            buffer = create_ray_buffer(WIDTH, HEIGHT, &world, get_color_chapter_4);
         } else if window.is_key_down(Key::Key5) {
-            buffer = create_ray_buffer(WIDTH, HEIGHT, get_color_chapter_5);
+            buffer = create_ray_buffer(WIDTH, HEIGHT, &world, get_color_chapter_5);
+        } else if window.is_key_down(Key::Key6) {
+            buffer = create_ray_buffer_antialias(WIDTH, HEIGHT, &world, get_color_chapter_5, 10);
+        } else if window.is_key_down(Key::Key7) {
+            buffer = create_ray_buffer_antialias(WIDTH, HEIGHT, &world, get_color_chapter_7, 200);
         }
 
         window
@@ -47,18 +62,25 @@ fn main() {
     //draw output
     draw_picture(WIDTH, HEIGHT, "output/chapter1.ppm", create_buffer).unwrap();
 
-    let ray_buffer_closure_3 = |w, h| create_ray_buffer(w, h, get_bg_color);
+    let ray_buffer_closure_3 = |w, h| create_ray_buffer(w, h, &world, get_bg_color);
     draw_picture(WIDTH, HEIGHT, "output/chapter3.ppm", ray_buffer_closure_3).unwrap();
 
-    let ray_buffer_closure_4 = |w, h| create_ray_buffer(w, h, get_color_chapter_4);
+    let ray_buffer_closure_4 = |w, h| create_ray_buffer(w, h, &world, get_color_chapter_4);
     draw_picture(WIDTH, HEIGHT, "output/chapter4.ppm", ray_buffer_closure_4).unwrap();
 
-    let ray_buffer_closure_5 = |w, h| create_ray_buffer(w, h, get_color_chapter_5);
+    let ray_buffer_closure_5 = |w, h| create_ray_buffer(w, h, &world, get_color_chapter_5);
     draw_picture(WIDTH, HEIGHT, "output/chapter5.ppm", ray_buffer_closure_5).unwrap();
+
+    let ray_buffer_closure_6 = |w, h| create_ray_buffer_antialias(w, h, &world, get_color_chapter_5, 10);
+    draw_picture(WIDTH, HEIGHT, "output/chapter6.ppm", ray_buffer_closure_6).unwrap();
+
+    let ray_buffer_closure_7 = |w, h| create_ray_buffer_antialias(w, h, &world, get_color_chapter_7, 50);
+    draw_picture(WIDTH, HEIGHT, "output/chapter7.ppm", ray_buffer_closure_7).unwrap();
 }
 
 trait RGB {
     fn to_u32_rgb(&self) -> u32;
+    fn gamma_2_correct(&self) -> Self;
 }
 
 impl RGB for Vec3 {
@@ -69,6 +91,10 @@ impl RGB for Vec3 {
 
         let (r, g, b) = (ir as u32, ig as u32, ib as u32);
         return (r << 16) | (g << 8) | b;
+    }
+
+    fn gamma_2_correct(&self) -> Vec3 {
+        return Vec3::new(self.r().sqrt(), self.g().sqrt(), self.b().sqrt());
     }
 }
 
@@ -112,7 +138,8 @@ fn create_buffer(x_size: usize, y_size: usize) -> Vec<u32> {
 }
 
 //chapter 3
-fn get_bg_color(ray: &Ray) -> Vec3 {
+//ignores world parameter, creates own world objects
+fn get_bg_color(ray: &Ray, _world: &dyn Renderable) -> Vec3 {
     let white: Vec3 = Vec3::new(1.0, 1.0, 1.0);
     let blue: Vec3 = Vec3::new(0.5, 0.7, 1.0);
 
@@ -122,7 +149,7 @@ fn get_bg_color(ray: &Ray) -> Vec3 {
     return (1.0 - t) * white + t * blue;
 }
 
-fn create_ray_buffer(x_size: usize, y_size: usize, ray_fn: fn(&Ray) -> Vec3) -> Vec<u32> {
+fn create_ray_buffer(x_size: usize, y_size: usize, world: &dyn Renderable, ray_fn: fn(&Ray, &dyn Renderable) -> Vec3) -> Vec<u32> {
     let mut buffer: Vec<u32> = Vec::new();
 
     //u,v coordinate system, x: [-2, 2], y[-1, 1]
@@ -130,15 +157,55 @@ fn create_ray_buffer(x_size: usize, y_size: usize, ray_fn: fn(&Ray) -> Vec3) -> 
     let horizontal = Vec3::new(4.0, 0.0, 0.0);
     let vertical = Vec3::new(0.0, 2.0, 0.0);
     let origin = Vec3::new(0.0, 0.0, 0.0);
+    let camera = Camera::new(bottom_left, horizontal, vertical, origin);
 
     for j in (0..y_size).rev() {
         for i in 0..x_size {
             let u = (i as f64) / (x_size as f64);
             let v = (j as f64) / (y_size as f64);
-            let direction = bottom_left + u * horizontal + v * vertical;
-            let ray = Ray::new(origin, direction);
-            let color = ray_fn(&ray);
+            let ray = camera.get_ray(u, v);
+            let color = ray_fn(&ray, world);
             let rgb = color.to_u32_rgb();
+            buffer.push(rgb);
+        }
+    }
+
+    return buffer;
+}
+
+
+//chapter 6
+pub fn create_ray_buffer_antialias(x_size: usize, y_size: usize, world: &dyn Renderable, color_fn: fn(&Ray, &dyn Renderable) -> Vec3, alias_num: u32) -> Vec<u32> {
+    let mut buffer: Vec<u32> = Vec::new();
+    let mut rng = rand::thread_rng();
+
+    //u,v coordinate system, x: [-2, 2], y[-1, 1]
+    let bottom_left = Vec3::new(-2.0, -1.0, -1.0);
+    let horizontal = Vec3::new(4.0, 0.0, 0.0);
+    let vertical = Vec3::new(0.0, 2.0, 0.0);
+    let origin = Vec3::new(0.0, 0.0, 0.0);
+    let camera = Camera::new(bottom_left, horizontal, vertical, origin);
+
+    for j in (0..y_size).rev() {
+        for i in 0..x_size {
+
+            let mut color = Vec3::new(0.0, 0.0, 0.0);
+            for _s in 0..alias_num {
+
+                let rand_u: f64 = rng.gen();
+                let rand_v: f64 = rng.gen();
+
+                let u = (i as f64 + rand_u) / (x_size as f64);
+                let v = (j as f64 + rand_v) / (y_size as f64);
+                let ray = camera.get_ray(u, v);
+
+                let color_sample = color_fn(&ray, world);
+
+                color += color_sample;
+            }
+
+            color /= alias_num as f64;
+            let rgb = color.gamma_2_correct().to_u32_rgb();
             buffer.push(rgb);
         }
     }
@@ -160,44 +227,19 @@ fn hit_sphere(center: &Vec3, radius: f64, ray: &Ray) -> bool {
     return discriminant > 0_f64;
 }
 
-fn get_color_chapter_4(ray: &Ray) -> Vec3 {
+fn get_color_chapter_4(ray: &Ray, world: &dyn Renderable) -> Vec3 {
     let center = Vec3::new(0_f64, 0_f64, -1_f64);
     let red = Vec3::new(1_f64, 0_f64, 0_f64);
 
     if hit_sphere(&center, 0.5, ray) {
         return red;
     } else {
-        return get_bg_color(ray);
+        return get_bg_color(ray, world);
     }
 }
 
 //chapter 5
-// returns -1 if no intersection
-// if hit, return some positive t = distance to first intersection
-fn hit_sphere_5(center: &Vec3, radius: f64, ray: &Ray) -> f64 {
-    //t*t*dot(B, B) + 2*t*dot(B,A-C) + dot(A-C,A-C) - R*R = 0
-
-    let ac = ray.origin() - *center;
-    let a = ray.direction().dot(ray.direction());
-    let b = 2.0 * ray.direction().dot(ac);
-    let c = ac.dot(ac) - radius * radius;
-
-    let discriminant = b.powi(2) - 4_f64 * a * c;
-
-    return if discriminant < 0.0 {
-        -1_f64
-    } else {
-        //quadratic formula
-        (-b - discriminant.sqrt()) / (2.0 * a)
-    };
-}
-
-fn get_color_chapter_5(ray: &Ray) -> Vec3 {
-    let center = Vec3::new(0_f64, 0_f64, -1_f64);
-    let radius = 0.5;
-    let sphere = Sphere::new(center, radius);
-    let sphere2 = Sphere::new(Vec3::new(0_f64, -100.5, -1_f64), 100_f64);
-    let world = vec![sphere, sphere2];
+fn get_color_chapter_5(ray: &Ray, world: &dyn Renderable) -> Vec3 {
 
     match { world.hit(ray, 0_f64, std::f64::MAX) } {
         Some(hit_record) => {
@@ -209,18 +251,42 @@ fn get_color_chapter_5(ray: &Ray) -> Vec3 {
                     surface_normal.z() + 1_f64,
                 );
         }
-        None => return get_bg_color(ray),
+        None => return get_bg_color(ray, world),
     }
 }
 
-//() type inside the Result generic is a zero sized tuple. It's basically used in a similar vein to void
+
+//chapter 7
+fn get_color_chapter_7(ray: &Ray, world: &dyn Renderable) -> Vec3 {
+    return get_color_chapter_7_tail(ray, world, 0);
+}
+
+fn get_color_chapter_7_tail(ray: &Ray, world: &dyn Renderable, num_bounces: i32) -> Vec3 {
+    let max_bounces = 50;
+
+
+    match { world.hit(ray, 0.001_f64, std::f64::MAX) } {
+        Some(hit_record) => {
+            let target = hit_record.position + hit_record.normal + random_in_unit_sphere();
+            let direction = target - hit_record.position;
+
+            //recurse
+            if num_bounces < max_bounces {
+                return 0.5 * get_color_chapter_7_tail( &Ray::new( hit_record.position, direction), world, num_bounces + 1);
+            } else {
+                return get_bg_color(ray, world);
+            }
+        }
+        None => return get_bg_color(ray, world),
+    }
+}
+
 fn draw_picture(
     x_size: usize,
     y_size: usize,
     filename: &str,
-    f: fn(usize, usize) -> Vec<u32>,
+    f: impl Fn(usize, usize) -> Vec<u32>,
 ) -> io::Result<()> {
-    //? syntax: try, unwrap if success, otherwise pass the error up the call stack
     let output_file = File::create(filename)?;
 
     {

@@ -46,9 +46,9 @@ impl Vec3 {
 
     pub fn make_unit_vector(&mut self) {
         let length = self.length();
-        self.x = self.x / length;
-        self.y = self.y / length;
-        self.z = self.z / length;
+        self.x /= length;
+        self.y /= length;
+        self.z /= length;
     }
 
     pub fn unit_vector(&self) -> Vec3 {
