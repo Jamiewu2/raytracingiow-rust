@@ -26,10 +26,16 @@ fn create_world() -> Box<dyn Renderable> {
     let radius = 0.5;
     let lambertian_material = Lambertian::new(Vec3::new(0.8, 0.3, 0.3));
     let lambertian_material2 = Lambertian::new(Vec3::new(0.5, 0.5, 0.5));
+    let metal_material = Metal::new(Vec3::new(0.8, 0.8, 0.8));
+    let metal_material2 = Metal::new(Vec3::new(0.8, 0.6, 0.2));
 
     let sphere = Sphere::new(center, radius, Box::new(lambertian_material));
     let sphere2 = Sphere::new(Vec3::new(0_f64, -100.5, -1_f64), 100_f64, Box::new(lambertian_material2));
-    let world = vec![sphere, sphere2];
+    let sphere3 = Sphere::new(Vec3::new(1_f64, 0.0, -1_f64), 0.5, Box::new(metal_material));
+    let sphere4 = Sphere::new(Vec3::new(-1_f64, 0.0, -1_f64), 0.5, Box::new(metal_material2));
+
+    //chapter
+    let world = vec![sphere, sphere2, sphere3, sphere4];
     return Box::new(world);
 }
 
@@ -81,7 +87,7 @@ fn main() {
     let ray_buffer_closure_6 = |w, h| create_ray_buffer_antialias(w, h, &*world, get_color_chapter_5, 10);
     draw_picture(WIDTH, HEIGHT, "output/chapter6.ppm", ray_buffer_closure_6).unwrap();
 
-    let ray_buffer_closure_7 = |w, h| create_ray_buffer_antialias(w, h, &*world, get_color_chapter_7, 50);
+    let ray_buffer_closure_7 = |w, h| create_ray_buffer_antialias(w, h, &*world, get_color_chapter_7, 200);
     draw_picture(WIDTH, HEIGHT, "output/chapter7.ppm", ray_buffer_closure_7).unwrap();
 }
 
