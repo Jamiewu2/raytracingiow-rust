@@ -9,7 +9,6 @@ use rand::Rng;
 
 mod render;
 use render::*;
-use render::random_in_unit_sphere;
 
 use minifb::Key;
 use minifb::Window;
@@ -22,6 +21,18 @@ use std::io::Write;
 const WIDTH: usize = 600;
 const HEIGHT: usize = 300;
 
+fn create_world() -> Box<dyn Renderable> {
+    let center = Vec3::new(0_f64, 0_f64, -1_f64);
+    let radius = 0.5;
+    let lambertian_material = Lambertian::new(Vec3::new(0.8, 0.3, 0.3));
+    let lambertian_material2 = Lambertian::new(Vec3::new(0.5, 0.5, 0.5));
+
+    let sphere = Sphere::new(center, radius, Box::new(lambertian_material));
+    let sphere2 = Sphere::new(Vec3::new(0_f64, -100.5, -1_f64), 100_f64, Box::new(lambertian_material2));
+    let world = vec![sphere, sphere2];
+    return Box::new(world);
+}
+
 fn main() {
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
@@ -31,11 +42,7 @@ fn main() {
         });
 
     //TODO how the fk do i move this out of here and specify all the lifetimes
-    let center = Vec3::new(0_f64, 0_f64, -1_f64);
-    let radius = 0.5;
-    let sphere = Sphere::new(center, radius);
-    let sphere2 = Sphere::new(Vec3::new(0_f64, -100.5, -1_f64), 100_f64);
-    let world = vec![sphere, sphere2];
+    let world = create_world();
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
@@ -43,15 +50,15 @@ fn main() {
         } else if window.is_key_down(Key::Key1) {
             buffer = create_buffer(WIDTH, HEIGHT);
         } else if window.is_key_down(Key::Key3) {
-            buffer = create_ray_buffer(WIDTH, HEIGHT, &world, get_bg_color);
+            buffer = create_ray_buffer(WIDTH, HEIGHT, &*world, get_bg_color);
         } else if window.is_key_down(Key::Key4) {
-            buffer = create_ray_buffer(WIDTH, HEIGHT, &world, get_color_chapter_4);
+            buffer = create_ray_buffer(WIDTH, HEIGHT, &*world, get_color_chapter_4);
         } else if window.is_key_down(Key::Key5) {
-            buffer = create_ray_buffer(WIDTH, HEIGHT, &world, get_color_chapter_5);
+            buffer = create_ray_buffer(WIDTH, HEIGHT, &*world, get_color_chapter_5);
         } else if window.is_key_down(Key::Key6) {
-            buffer = create_ray_buffer_antialias(WIDTH, HEIGHT, &world, get_color_chapter_5, 10);
+            buffer = create_ray_buffer_antialias(WIDTH, HEIGHT, &*world, get_color_chapter_5, 10);
         } else if window.is_key_down(Key::Key7) {
-            buffer = create_ray_buffer_antialias(WIDTH, HEIGHT, &world, get_color_chapter_7, 200);
+            buffer = create_ray_buffer_antialias(WIDTH, HEIGHT, &*world, get_color_chapter_7, 200);
         }
 
         window
@@ -62,19 +69,19 @@ fn main() {
     //draw output
     draw_picture(WIDTH, HEIGHT, "output/chapter1.ppm", create_buffer).unwrap();
 
-    let ray_buffer_closure_3 = |w, h| create_ray_buffer(w, h, &world, get_bg_color);
+    let ray_buffer_closure_3 = |w, h| create_ray_buffer(w, h, &*world, get_bg_color);
     draw_picture(WIDTH, HEIGHT, "output/chapter3.ppm", ray_buffer_closure_3).unwrap();
 
-    let ray_buffer_closure_4 = |w, h| create_ray_buffer(w, h, &world, get_color_chapter_4);
+    let ray_buffer_closure_4 = |w, h| create_ray_buffer(w, h, &*world, get_color_chapter_4);
     draw_picture(WIDTH, HEIGHT, "output/chapter4.ppm", ray_buffer_closure_4).unwrap();
 
-    let ray_buffer_closure_5 = |w, h| create_ray_buffer(w, h, &world, get_color_chapter_5);
+    let ray_buffer_closure_5 = |w, h| create_ray_buffer(w, h, &*world, get_color_chapter_5);
     draw_picture(WIDTH, HEIGHT, "output/chapter5.ppm", ray_buffer_closure_5).unwrap();
 
-    let ray_buffer_closure_6 = |w, h| create_ray_buffer_antialias(w, h, &world, get_color_chapter_5, 10);
+    let ray_buffer_closure_6 = |w, h| create_ray_buffer_antialias(w, h, &*world, get_color_chapter_5, 10);
     draw_picture(WIDTH, HEIGHT, "output/chapter6.ppm", ray_buffer_closure_6).unwrap();
 
-    let ray_buffer_closure_7 = |w, h| create_ray_buffer_antialias(w, h, &world, get_color_chapter_7, 50);
+    let ray_buffer_closure_7 = |w, h| create_ray_buffer_antialias(w, h, &*world, get_color_chapter_7, 50);
     draw_picture(WIDTH, HEIGHT, "output/chapter7.ppm", ray_buffer_closure_7).unwrap();
 }
 
@@ -173,7 +180,6 @@ fn create_ray_buffer(x_size: usize, y_size: usize, world: &dyn Renderable, ray_f
     return buffer;
 }
 
-
 //chapter 6
 pub fn create_ray_buffer_antialias(x_size: usize, y_size: usize, world: &dyn Renderable, color_fn: fn(&Ray, &dyn Renderable) -> Vec3, alias_num: u32) -> Vec<u32> {
     let mut buffer: Vec<u32> = Vec::new();
@@ -255,7 +261,6 @@ fn get_color_chapter_5(ray: &Ray, world: &dyn Renderable) -> Vec3 {
     }
 }
 
-
 //chapter 7
 fn get_color_chapter_7(ray: &Ray, world: &dyn Renderable) -> Vec3 {
     return get_color_chapter_7_tail(ray, world, 0);
@@ -264,17 +269,16 @@ fn get_color_chapter_7(ray: &Ray, world: &dyn Renderable) -> Vec3 {
 fn get_color_chapter_7_tail(ray: &Ray, world: &dyn Renderable, num_bounces: i32) -> Vec3 {
     let max_bounces = 50;
 
-
+    //add a little to the minimum to fix floating point inaccuracies
     match { world.hit(ray, 0.001_f64, std::f64::MAX) } {
         Some(hit_record) => {
-            let target = hit_record.position + hit_record.normal + random_in_unit_sphere();
-            let direction = target - hit_record.position;
+            let (attenuation, scattered) = hit_record.material.scatter(ray, &hit_record);
 
             //recurse
             if num_bounces < max_bounces {
-                return 0.5 * get_color_chapter_7_tail( &Ray::new( hit_record.position, direction), world, num_bounces + 1);
+                return attenuation * get_color_chapter_7_tail(&scattered, world, num_bounces + 1);
             } else {
-                return get_bg_color(ray, world);
+                return Vec3::new(0.0,0.0, 0.0);
             }
         }
         None => return get_bg_color(ray, world),

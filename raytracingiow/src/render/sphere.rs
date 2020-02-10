@@ -3,15 +3,17 @@ use crate::math::Vec3;
 use crate::math::Ray;
 use crate::render::renderable::HitRecord;
 use crate::render::renderable::Renderable;
+use crate::render::material::Material;
 
 pub struct Sphere {
     center: Vec3,
     radius: f64,
+    material: Box<dyn Material>,
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, radius: f64) -> Self {
-        Self { center, radius }
+    pub fn new(center: Vec3, radius: f64, material: Box<dyn Material>) -> Self {
+        Self { center, radius, material }
     }
 
     fn create_hit_record(&self, ray: &Ray, t: f64) -> HitRecord {
@@ -21,6 +23,7 @@ impl Sphere {
             t,
             position,
             normal,
+            material: &*self.material
         }
     }
 }

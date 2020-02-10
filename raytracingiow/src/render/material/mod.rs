@@ -1,6 +1,5 @@
-mod matte;
+mod lambertian;
+mod material;
 
-//tmp
-pub use self::matte::random_in_unit_sphere;
-
-pub use self::matte::*;
+pub use self::lambertian::*;
+pub use self::material::*;

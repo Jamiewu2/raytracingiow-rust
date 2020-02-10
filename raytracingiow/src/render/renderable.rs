@@ -1,11 +1,13 @@
 use crate::math::Ray;
 use crate::math::Vec3;
+use crate::render::material::Material;
 
-pub struct HitRecord {
+pub struct HitRecord<'a> {
     //ray.point_at_distance(t) = position
     pub t: f64,
     pub position: Vec3,
     pub normal: Vec3,
+    pub material: &'a dyn Material,
 }
 
 pub trait Renderable {
