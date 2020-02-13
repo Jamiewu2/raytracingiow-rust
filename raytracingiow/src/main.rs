@@ -26,15 +26,15 @@ fn create_world() -> Box<dyn Renderable> {
     let radius = 0.5;
     let lambertian_material = Lambertian::new(Vec3::new(0.8, 0.3, 0.3));
     let lambertian_material2 = Lambertian::new(Vec3::new(0.5, 0.5, 0.5));
-    let metal_material = Metal::new(Vec3::new(0.8, 0.8, 0.8));
-    let metal_material2 = Metal::new(Vec3::new(0.8, 0.6, 0.2));
+    //chapter 8
+    let metal_material = Metal::new(Vec3::new(0.8, 0.8, 0.8), 0.3);
+    let metal_material2 = Metal::new(Vec3::new(0.8, 0.6, 0.2), 0.1);
 
     let sphere = Sphere::new(center, radius, Box::new(lambertian_material));
     let sphere2 = Sphere::new(Vec3::new(0_f64, -100.5, -1_f64), 100_f64, Box::new(lambertian_material2));
     let sphere3 = Sphere::new(Vec3::new(1_f64, 0.0, -1_f64), 0.5, Box::new(metal_material));
     let sphere4 = Sphere::new(Vec3::new(-1_f64, 0.0, -1_f64), 0.5, Box::new(metal_material2));
 
-    //chapter
     let world = vec![sphere, sphere2, sphere3, sphere4];
     return Box::new(world);
 }
@@ -278,13 +278,18 @@ fn get_color_chapter_7_tail(ray: &Ray, world: &dyn Renderable, num_bounces: i32)
     //add a little to the minimum to fix floating point inaccuracies
     match { world.hit(ray, 0.001_f64, std::f64::MAX) } {
         Some(hit_record) => {
-            let (attenuation, scattered) = hit_record.material.scatter(ray, &hit_record);
-
-            //recurse
-            if num_bounces < max_bounces {
-                return attenuation * get_color_chapter_7_tail(&scattered, world, num_bounces + 1);
-            } else {
-                return Vec3::new(0.0,0.0, 0.0);
+            match { hit_record.material.scatter(ray, &hit_record) } {
+                Some(scatter_record) => {
+                    let attenuation = scatter_record.attenuation;
+                    let scattered = scatter_record.scattered;
+                    //recurse
+                    if num_bounces < max_bounces {
+                        return attenuation * get_color_chapter_7_tail(&scattered, world, num_bounces + 1);
+                    } else {
+                        return Vec3::new(0.0,0.0, 0.0);
+                    }
+                }
+                None => return Vec3::new(0.0,0.0, 0.0)
             }
         }
         None => return get_bg_color(ray, world),

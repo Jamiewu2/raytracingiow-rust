@@ -3,8 +3,9 @@ use rand::Rng;
 use crate::render::material::material::Material;
 use crate::math::Ray;
 use crate::render::renderable::HitRecord;
+use crate::render::material::material::ScatterRecord;
 
-fn random_in_unit_sphere() -> Vec3 {
+pub fn random_in_unit_sphere() -> Vec3 {
     let mut rng = rand::thread_rng();
 
     loop {
@@ -33,13 +34,18 @@ impl Lambertian {
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, _ray: &Ray, hit_record: &HitRecord) -> (Vec3, Ray) {
+    fn scatter(&self, _ray: &Ray, hit_record: &HitRecord) -> Option<ScatterRecord> {
         let target = hit_record.position + hit_record.normal + random_in_unit_sphere();
         let direction = target - hit_record.position;
 
         let scattered = Ray::new(hit_record.position, direction);
-        let attentuation = self.albedo;
+        let attenuation = self.albedo;
 
-        return (attentuation, scattered);
+        return Some(
+            ScatterRecord {
+                attenuation,
+                scattered
+            }
+        );
     }
 }
